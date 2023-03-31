@@ -4,3 +4,5 @@
 bin/
 obj/
 tmp/
+/.vs
+/DockRotate.sln.DotSettings.user
