@@ -266,7 +266,21 @@ namespace DockRotate
 				return;
 			}
 
-			if (rotCur.done()) {
+            if (controller.armedTrigger)
+            {
+                var angle = rotationAngle();
+
+                Debug.Log($"angle:{angle} - controller {controller.angleToTrigger}");
+                if ( Mathf.Abs(angle - controller.angleToTrigger) < 2f)
+                {
+                    this.controller.vessel.ActionGroups.ToggleGroup(
+                        (KSPActionGroup)Enum.Parse(typeof(KSPActionGroup), "Custom0" + (int)this.controller.actionGroupToTrigger));
+
+                    controller.armedTrigger = false;
+                }
+            }
+
+            if (rotCur.done()) {
 				log(desc(), ": removing rotation (done)");
 				rotCur = null;
 				return;
@@ -277,7 +291,8 @@ namespace DockRotate
 				rotCur.brake();
 			rotCur.advance(Time.fixedDeltaTime);
 			controller.updateFrozenRotation("FIXED");
-		}
+
+        }
 
 		public void OnDestroy()
 		{
@@ -340,7 +355,7 @@ namespace DockRotate
 		public void stepSound()
 		{
 			if (rotCur && sound != null) {
-				float p = Mathf.Sqrt(Mathf.Abs(rotCur.vel / rotCur.maxvel));
+				float p = Mathf.Sqrt(Mathf.Abs(rotCur.vel / 360f));
 				sound.volume = soundVolume * p * GameSettings.SHIP_VOLUME;
 				sound.pitch = p * soundPitch * pitchAlteration;
 			}

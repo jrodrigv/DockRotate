@@ -39,7 +39,7 @@ namespace DockRotate
 
 			isContinuous(); // normalizes tgt for continuous rotation
 
-			maxacc = Mathf.Clamp(maxvel / accelTime, 1f, 180f);
+			maxacc = Mathf.Clamp(maxvel / accelTime, 1f, 18f);
 
 			bool goingRightWay = (tgt - pos) * vel >= 0f;
 			float brakingSpace = Mathf.Abs(curBrakingSpace(deltat));

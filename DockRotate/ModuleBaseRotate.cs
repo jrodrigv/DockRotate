@@ -5,6 +5,8 @@ using System.Reflection;
 using UnityEngine;
 using KSP.Localization;
 using CompoundParts;
+using static ProceduralSpaceObject;
+using UnityEngine.SceneManagement;
 
 namespace DockRotate
 {
@@ -106,7 +108,36 @@ namespace DockRotate
 		)]
 		public float rotationSpeed = 5f;
 
-		[UI_Toggle(affectSymCounterparts = UI_Scene.None)]
+        [UI_FloatEdit(
+            incrementSlide = 0.5f, incrementSmall = 5f, incrementLarge = 30f,
+            sigFigs = 1, unit = "\u00b0",
+            minValue = 0f, maxValue = 360f
+        )]
+        [KSPField(
+            groupName = GROUPNAME,
+            groupDisplayName = GROUPLABEL,
+            groupStartCollapsed = true,
+            guiActive = true,
+            guiActiveEditor = true,
+            isPersistant = true,
+            guiName = "Angle to trigger",
+            guiUnits = "\u00b0"
+		)]
+		public float angleToTrigger = 0f;
+		[UI_FloatRange(minValue = 1f, maxValue = 9f, stepIncrement = 1f, scene = UI_Scene.Editor, affectSymCounterparts = UI_Scene.All)]
+        [KSPField(
+		groupName = GROUPNAME,
+		groupDisplayName = GROUPLABEL,
+		groupStartCollapsed = true,
+		guiActive = true,
+            guiActiveEditor = true,
+            isPersistant = true,
+            guiName = "Action group to trigger"
+        )]
+        public float actionGroupToTrigger = 0;
+
+
+        [UI_Toggle(affectSymCounterparts = UI_Scene.None)]
 		[KSPField(
 			groupName = GROUPNAME,
 			groupDisplayName = GROUPLABEL,
@@ -314,7 +345,24 @@ namespace DockRotate
 			}
 		}
 
-		[KSPEvent(
+        [KSPAction(
+            guiName = "Trigger ag at angle",
+            requireFullControl = true
+        )]
+        public void TriggerActionGroupWhenAtAngle(KSPActionParam param)
+        {
+            if (verboseEvents)
+                log(desc(), ": action " + param.desc());
+            doTriggerActionGroupWhenAtAngle();
+
+        }
+
+        private void doTriggerActionGroupWhenAtAngle()
+        {
+            this.armedTrigger = true;
+        }
+
+        [KSPEvent(
 			guiName = "#DCKROT_rotate_counterclockwise",
 			groupName = GROUPNAME,
 			groupDisplayName = GROUPLABEL,
@@ -1400,8 +1448,9 @@ namespace DockRotate
 		}
 
 		private int lastUsefulFixedUpdate = 0;
+        public bool armedTrigger;
 
-		public void FixedUpdate()
+        public void FixedUpdate()
 		{
 			if (setupDone && HighLogic.LoadedSceneIsFlight)
 				checkFrozenRotation();
