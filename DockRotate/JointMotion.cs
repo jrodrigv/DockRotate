@@ -77,7 +77,9 @@ namespace DockRotate
 			}
 		}
 
-		public static JointMotion get(PartJoint j)
+		public float bestSolution { get; set; } = 1000f;
+
+        public static JointMotion get(PartJoint j)
 		{
 			if (!j)
 				return null;
@@ -269,15 +271,23 @@ namespace DockRotate
             if (controller.armedTrigger)
             {
                 var angle = rotationAngle();
-
-                Debug.Log($"angle:{angle} - controller {controller.angleToTrigger}");
-                if ( Mathf.Abs(angle - controller.angleToTrigger) < 2f)
-                {
-                    this.controller.vessel.ActionGroups.ToggleGroup(
-                        (KSPActionGroup)Enum.Parse(typeof(KSPActionGroup), "Custom0" + (int)this.controller.actionGroupToTrigger));
-
-                    controller.armedTrigger = false;
+                if (controller.angleTriggerStatus == AngleTriggerPlan.CalculatingLaunchPlan)
+				{
+                    
+                    if (Mathf.Abs(angle - controller.angleToTrigger) < Mathf.Abs(this.bestSolution - controller.angleToTrigger))
+                    {
+                        this.bestSolution = angle;
+                    }
                 }
+				else if(controller.angleTriggerStatus == AngleTriggerPlan.Fire &&
+                     Mathf.Abs(angle - this.bestSolution) < 0.5f)
+				{
+                    this.controller.vessel.ActionGroups.ToggleGroup(
+						(KSPActionGroup)Enum.Parse(typeof(KSPActionGroup), "Custom0" + (int)this.controller.actionGroupToTrigger));
+
+					controller.armedTrigger = false;
+				}
+
             }
 
             if (rotCur.done()) {

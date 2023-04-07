@@ -7,6 +7,8 @@ using KSP.Localization;
 using CompoundParts;
 using static ProceduralSpaceObject;
 using UnityEngine.SceneManagement;
+using UnityEngine.Rendering;
+using KSP.UI.Screens;
 
 namespace DockRotate
 {
@@ -21,6 +23,9 @@ namespace DockRotate
 #else
 		protected const bool DEBUGMODE = false;
 #endif
+
+
+		public AngleTriggerPlan angleTriggerStatus = AngleTriggerPlan.WaitingForMaxSpeed;
 
 		[KSPField(isPersistant = true)]
 		public int Revision = -1;
@@ -360,6 +365,101 @@ namespace DockRotate
         private void doTriggerActionGroupWhenAtAngle()
         {
             this.armedTrigger = true;
+
+			StartCoroutine(this.TriggerAtAngle());
+        }
+
+        public IEnumerator TriggerAtAngle()
+        {
+            JointMotionObj cr = currentRotation();
+			int countDown = 10;
+            while (angleTriggerStatus != AngleTriggerPlan.Fire)
+			{
+				switch (angleTriggerStatus)
+				{
+					case AngleTriggerPlan.WaitingForMaxSpeed:
+
+						if(Mathf.Abs (cr.vel) < Mathf.Abs(this.rotationSpeed))
+						{
+								ScreenMessages.PostScreenMessage(
+						  "Waiting for max rotation speed", 1f,
+						  ScreenMessageStyle.UPPER_CENTER);
+								yield return new WaitForSeconds(1);
+
+                        }
+						else
+						{
+                            this.angleTriggerStatus = AngleTriggerPlan.MaxSpeedAchieved;
+                        }
+
+                 
+						break;
+
+					case AngleTriggerPlan.MaxSpeedAchieved:
+							ScreenMessages.PostScreenMessage(
+						"Max speed achieved", 1f,
+						ScreenMessageStyle.UPPER_CENTER);
+						this.angleTriggerStatus = AngleTriggerPlan.CalculatingLaunchPlan;
+                        this.jointMotion.bestSolution = 1000f;
+                        yield return new WaitForSeconds(5);
+                        break;
+
+					case AngleTriggerPlan.CalculatingLaunchPlan:
+
+						if (SolutionIsNotGoodEnough())
+						{
+                            ScreenMessages.PostScreenMessage(
+                       $" Continue looking for a solution best solution={this.jointMotion.bestSolution}", 1f,
+                       ScreenMessageStyle.UPPER_CENTER);
+
+							ReduceRotationSpeed();
+                            yield return new WaitForSeconds(5);
+                        }
+						else
+						{
+                            ScreenMessages.PostScreenMessage(
+                   $" Solution found ={this.jointMotion.bestSolution} calculating countdown", 1f,
+                   ScreenMessageStyle.UPPER_CENTER);
+
+                            this.angleTriggerStatus = AngleTriggerPlan.CountdownStarted;
+                            yield return new WaitForSeconds(1);
+                        }
+				
+                          
+                        break;
+
+					case AngleTriggerPlan.CountdownStarted:
+
+						if(countDown == 0)
+						{
+							this.angleTriggerStatus = AngleTriggerPlan.Fire;
+                            yield return new WaitForSeconds(1);
+                        }
+						else
+						{
+                            ScreenMessages.PostScreenMessage(
+                $" T - {countDown}", 1f,
+                ScreenMessageStyle.UPPER_CENTER);
+
+                            countDown -= 1;
+                            yield return new WaitForSeconds(1);
+                        }
+
+                    
+                        break;
+				} 
+			}
+        }
+
+        private void ReduceRotationSpeed()
+        {
+			this.rotationSpeed -= 1;
+			this.jointMotion.bestSolution = 1000f;
+        }
+
+        private bool SolutionIsNotGoodEnough()
+        {
+			return Mathf.Abs(angleToTrigger - this.jointMotion.bestSolution) > 0.5f;
         }
 
         [KSPEvent(
@@ -689,7 +789,7 @@ namespace DockRotate
 			get => setupDoneAt != 0;
 		}
 
-		public void onFieldChange(string name, Callback<BaseField, object> fun)
+        public void onFieldChange(string name, Callback<BaseField, object> fun)
 		{
 			BaseField fld = Fields[name];
 			if (fld == null) {
@@ -1507,6 +1607,6 @@ namespace DockRotate
 		{
 			return Extensions.log(msg1, msg2);
 		}
-	}
+    }
 }
 
