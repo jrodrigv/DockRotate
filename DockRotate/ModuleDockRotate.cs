@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using KSP.Localization;
 using KSP.UI.Screens.DebugToolbar;
@@ -43,6 +44,46 @@ namespace DockRotate
 			if (n != null)
 				n.TryGetValue("canRotate", ref ret);
 			return ret;
+		}
+
+		private JointWelder welder;
+
+		private BaseEvent WeldEvent = null;
+		[KSPEvent(
+			guiName = "#DCKROT_weld",
+			guiActive = false,
+			guiActiveUnfocused = true,
+			externalToEVAOnly = true,
+			unfocusedRange = 5f,
+			guiActiveEditor = false
+		)]
+		public void Weld()
+		{
+			if (welder == null)
+				return;
+			Vessel EVAvessel = FlightGlobals.ActiveVessel;
+			if (!EVAvessel.isEVA)
+				return;
+
+			bool canWeld = false;
+			KerbalEVA EVAmodule = null;
+			for (int i = 0; i < EVAvessel.parts.Count; i++) {
+				Part EVApart = EVAvessel.parts[i];
+				if (!EVAmodule)
+					EVAmodule = EVApart.FindModuleImplementing<KerbalEVA>();
+				List<ProtoCrewMember> EVAprotos = EVApart.protoModuleCrew;
+				for (int j = 0; j < EVAprotos.Count; j++) {
+					ProtoCrewMember EVAproto = EVAprotos[j];
+					if (EVAproto.HasEffect<Experience.Effects.DrillSkill>())
+						canWeld = true;
+				}
+			}
+
+			if (!canWeld) {
+				ScreenMessages.PostScreenMessage(Localizer.Format("#DCKROT_engineer_needed"), 5f, ScreenMessageStyle.UPPER_CENTER);
+				return;
+			}
+			StartCoroutine(welder.doWeld(EVAmodule));
 		}
 
 		private BaseEvent SwitchToReadyEvent = null;
@@ -96,6 +137,29 @@ namespace DockRotate
 			} else {
 				log(desc(), ".showCheckDockingState(" + active + "): can't find event");
 			}
+		}
+
+		[KSPEvent(
+			guiActive = true,
+			groupName = DEBUGGROUP,
+			groupDisplayName = DEBUGGROUP
+		)]
+		public void CheckWeldability()
+		{
+			JointWelder.get(jointMotion ? jointMotion.joint : null, true);
+		}
+
+		[KSPEvent(
+			guiActive = true,
+			groupName = DEBUGGROUP,
+			groupDisplayName = DEBUGGROUP
+		)]
+		public void WeldCouple()
+		{
+			JointWelder welder = JointWelder.get(jointMotion ? jointMotion.joint : null, true);
+			if (welder != null)
+				StartCoroutine(welder.doWeld(null));
+
 		}
 
 		protected override void fillInfo()
@@ -210,6 +274,7 @@ namespace DockRotate
 #endif
 			base.doSetup(onLaunch);
 
+			WeldEvent = Events[nameof(Weld)];
 			SwitchToReadyEvent = Events[nameof(SwitchToReady)];
 
 			if (!consoleSetupDone) {
@@ -232,6 +297,9 @@ namespace DockRotate
 				isDocked = hasJointMotion;
 				log(desc(), ": new docked state " + isDocked);
 			}
+
+			welder = hasJointMotion ? JointWelder.get(jointMotion.joint, false) : null;
+			WeldEvent.guiActiveUnfocused = welder != null;
 
 			if (hasJointMotion && jointMotion.joint.Host == part && !frozenFlag) {
 				float snap = autoSnapStep();

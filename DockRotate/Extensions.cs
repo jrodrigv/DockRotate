@@ -98,12 +98,27 @@ namespace DockRotate
 			return s > 1 ? part.name.Remove(s) : part.name;
 		}
 
-		public static List<AttachNode> allAttachNodes(this Part part)
+		public static List<AttachNode> allAttachNodes(this Part part, bool includeSrfAttach = true)
 		{
 			List<AttachNode> ret = new List<AttachNode>();
-			if (part.srfAttachNode != null)
+			part.attachNodes.ForEach(n => {
+				if (n != null)
+					ret.Add(n);
+			});
+			if (includeSrfAttach && part.srfAttachNode != null)
 				ret.Add(part.srfAttachNode);
-			ret.AddRange(part.attachNodes);
+			return ret;
+		}
+
+		public static List<AttachNode> namedAttachNodes(this Part part, bool includeSrfAttach = true)
+		{
+			List<AttachNode> ret = new List<AttachNode>();
+			part.attachNodes.ForEach(n => {
+				if (n != null && n.id != "")
+					ret.Add(n);
+			});
+			if (includeSrfAttach && part.srfAttachNode != null && part.srfAttachNode.id != "")
+				ret.Add(part.srfAttachNode);
 			return ret;
 		}
 
@@ -243,8 +258,8 @@ namespace DockRotate
 
 		public static bool matchType(this ModuleDockingNode node, ModuleDockingNode other)
 		{
-			fillNodeTypes(node);
-			fillNodeTypes(other);
+			node.fillNodeTypes();
+			other.fillNodeTypes();
 			return node.nodeTypes.Overlaps(other.nodeTypes);
 		}
 
@@ -351,7 +366,7 @@ namespace DockRotate
 				return "null";
 			return (bare ? "" : "AN:") + n.id + ":" + n.size
 				+ ":" + n.owner.desc(true)
-				+ ":" + (n.attachedPart ? n.attachedPart.desc(true) : "I" + n.attachedPartId);
+				+ ">" + (n.attachedPart ? n.attachedPart.desc(true) : "I" + n.attachedPartId);
 		}
 
 		/******** PartJoint utilities ********/
